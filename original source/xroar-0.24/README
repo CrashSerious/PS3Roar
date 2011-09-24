@@ -1,0 +1,116 @@
+XRoar - a Dragon/Tandy Coco emulator
+Copyright (C) 2003-2010 Ciaran Anscomb <xroar@6809.org.uk>
+
+
+XRoar is a Dragon emulator that runs on a wide variety of platforms.
+Due to hardware similarities, XRoar also emulates the Tandy Colour
+Computer (CoCo) models 1 & 2.
+
+
+This document just contains extracts from the manual covering
+installation of XRoar from source.  If you downloaded a binary package,
+the full manual should have been supplied with it as a PDF, which you
+can consult for more details.  Binary packages and an online copy of
+the documentation are available from the XRoar home page
+(http://www.6809.org.uk/dragon/xroar.shtml).
+
+
+This program is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation; either version 2 of the License, or (at your
+option) any later version.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+See the file 'COPYING.GPL' for the full terms.
+
+Binary distributions only:
+
+Binary distributions of this software may be linked, statically or
+otherwise, against the SDL and/or libsndfile libraries.  Both packages
+are distributed under the GNU Lesser General Public License, Version
+2.1.  Source code for these libraries is made available from their
+respective home pages, but also from the XRoar home page (see above for
+URL).
+
+See the file 'COPYING.LGPL-2.1' for the full terms.
+
+http://www.mega-nerd.com/libsndfile/    - libsndfile home page.
+http://www.libsdl.org/                  - SDL home page.
+
+
+Getting started
+***************
+
+To start, you will need to acquire (and maybe build) the software and
+install it.  Pre-built binary packages are available from the XRoar
+home page (http://www.6809.org.uk/dragon/xroar.shtml) .  If one is not
+available for your architecture, you will have to build from source.
+XRoar should build and run on any POSIX-like system for which SDL
+(http://www.libsdl.org/)  is available.
+
+
+Installation
+************
+
+Building from source code
+=========================
+
+If there is no binary package for your system, you will have to build
+from source.  Before doing so, you should ensure you have the
+dependencies required to build:
+
+   * *SDL*, Simple Directmedia Layer, is used for video and audio
+     output on most supported platforms, and is required to build for
+     all of them.  It can be obtained from the SDL home page
+     (http://www.libsdl.org/) .
+
+   * *SDL_image* is an add-on to SDL that provides the ability to
+     manipulate various graphics formats.  It's used in the build
+     process to generate font data from a supplied image file.  It can
+     be downloaded from the SDL_image project page
+     (http://www.libsdl.org/projects/SDL_image/) .
+
+   * *libsndfile* is optional but recommended.  It allows XRoar to use
+     audio files (such as WAVs) as a source for cassette input.  It is
+     available on the libsndfile home page
+     (http://www.mega-nerd.com/libsndfile/) .
+
+   * *GTK+*, the GIMP tookit, is used to provide a file requester on
+     Linux and Unix builds.  It is available from the GTK+ home page
+     (http://www.gtk.org/) .
+
+   If you use a modern Linux or Unix distribution, it's likely that
+most of these packages will be installed by default, or easily
+available through its package management system.
+
+   The actual build process should be fairly straightforward and
+follows the same steps as many other software packages.  Unpack the
+source code, change into the created source directory, run `configure'
+and then if everything looks good, run `make'.  Example:
+
+     $ gzip -dc xroar-VERSION.tar.gz | tar xvf -
+     $ cd xroar-VERSION
+     $ ./configure
+     $ make
+
+   By default, `configure' will set things up to install to
+`/usr/local', but this can be changed by using the
+`--prefix=/path/to/destination' option.
+
+   `configure' will detect any optionally supported drivers like Sun
+audio, OpenGL video, etc.
+
+   Once built, run `make install' to install the binary and info
+documentation on your system.  Firmware ROM images should be placed
+either in your home directory under `.xroar/roms/', or in
+`_PREFIX_/share/xroar/roms/', where _PREFIX_ is the install prefix as
+above.
+

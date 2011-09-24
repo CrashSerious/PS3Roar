@@ -1,0 +1,962 @@
+#!/bin/sh
+
+# This is not a GNU Autoconf configure script.  It is manually maintained.
+
+command_line="$*"
+
+SRCROOT=`dirname $0`
+
+test -z "$prefix" && prefix=/usr/local
+
+unset BUILD_STYLE
+unset EXEEXT
+unset target_pkg_config build_pkg_config
+unset target_sdl_config build_sdl_config
+unset target_gtk_config
+unset _have_video_driver
+
+all_opt="strsep sdl sdlgl build_sdl build_sdl_image curses gtk2 gtk1 cli carbon alsa oss sunaudio coreaudio jack nullaudio sndfile gp32 nds mingw mpu_rate trace fast_vdg fast_sound"
+unset $all_opt
+
+case `echo -n` in
+-n) _echo_n=""; _echo_c='\c'; ;;	# SysV echo
+*) _echo_n="-n"; _echo_c=""; ;;		# BSD echo
+esac
+
+helptext () {
+	cat <<EOF
+Usage: $0 [OPTION]...
+
+Installation directories:
+  --prefix=PREFIX         install architecture-independent files in PREFIX
+                          [$prefix]
+  --exec-prefix=EPREFIX   install architecture-dependent files in EPREFIX
+                          [PREFIX]
+  --bindir=DIR            user executables [EPREFIX/bin]
+  --datadir=DIR           read-only architecture-independent data [PREFIX/share]
+  --infodir=DIR           info documentation [DATADIR/info]
+  --docdir=DIR            documentation root [DATADIR/doc/xroar]
+  --pdfdir=DIR            pdf documentation [DOCDIR]
+
+System types:
+  --build=BUILD     configure for building on BUILD [guessed]
+  --target=TARGET   cross-compile to build programs to run on TARGET [BUILD]
+
+Optional Features:
+  --disable-sdl         don't test for SDL
+  --disable-sdlgl       don't test for SDL OpenGL support
+  --disable-curses      don't test for Curses
+  --disable-gtk2        don't test for GTK+-2
+  --disable-gtk1        don't test for GTK+-1
+  --disable-carbon      don't test for Mac OS X Carbon
+  --disable-alsa        don't test for ALSA audio
+  --disable-oss         don't test for OSS audio
+  --disable-sun         don't test for Sun audio
+  --disable-coreaudio   don't test for Mac OS X Core Audio
+  --disable-jack        don't test for JACK audio
+  --disable-nullaudio   don't include null audio driver
+  --disable-mingw       don't test for MinGW
+  --disable-gp32        don't test for GP32
+  --disable-nds         don't test for Nintendo DS
+  --disable-trace       disable trace mode
+  --disable-mpu-rate    disable setting of emulated MPU rate
+  --enable-fast-vdg     enable faster but less accurate VDG code
+  --enable-fast-sound   enable faster but less accurate sound code
+
+  --with-sdl-config=PATH   set path to sdl-config script
+  --with-pkg-config=PATH   set path to pkg-config script
+  --with-gtk-config=PATH   set path to gtk-config script
+  --with-makeinfo=PATH     set path to makeinfo
+  --with-texi2pdf=PATH     set path to texi2pdf
+  --with-install=PATH      set path to install
+
+  -h, --help            display this help and exit
+EOF
+}
+
+exec 3>config.log
+config_log=3
+
+echo "# $command_line" >&$config_log
+
+TMPC=conftemp.c
+TMPO=conftemp.o
+TMPX=conftemp
+
+while test -n "$1"; do
+	opt="$1"
+	case "$opt" in
+	--) shift; break; ;;
+	macosx)
+		TARGET_CC="gcc-4.0 -arch ppc -arch i386 -g"
+		CFLAGS="-mmacosx-version-min=10.4 -DMAC_OS_X_VERSION_MIN_REQUIRED=1040"
+		LDFLAGS="-Wl,-headerpad_max_install_names -Wl,-syslibroot,/Developer/SDKs/MacOSX10.4u.sdk"
+		;;
+	CC=*) TARGET_CC=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	CFLAGS=*) TARGET_CFLAGS=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	CPPFLAGS=*) TARGET_CPPFLAGS=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	LDFLAGS=*) TARGET_LDFLAGS=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	BUILD_CFLAGS=*) BUILD_CFLAGS=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	BUILD_LDFLAGS=*) BUILD_LDFLAGS=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	--prefix=*) prefix=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	--exec-prefix=*) exec_prefix=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	--bindir=*) bindir=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	--sbindir=*) sbindir=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	--libdir=*) libdir=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	--datadir=*) datadir=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	--sysconfdir=*) sysconfdir=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	--includedir=*) includedir=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	--infodir=*) infodir=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	--mandir=*) mandir=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	--docdir=*) docdir=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	--pdfdir=*) pdfdir=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	--build=*) build=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	--host=*) target=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	--target=*) target=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	--enable-[a-z-]*) eval _`echo "$opt"|sed 's/^--enable-//;s/-/_/g'`=yes; ;;
+	--disable-[a-z-]*) eval _`echo "$opt"|sed 's/^--disable-//;s/-/_/g'`=no; ;;
+	--with-sdl-config=*) target_sdl_config=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	--with-sdl=*)
+		_tmp=`echo "$opt"|sed 's/^[^=]*=//'`
+		sdl_includes="$_tmp/include"
+		sdl_libs="$_tmp/lib"
+		;;
+	--with-gtk-config=*) gtk_config=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	--with-gtk2=*)
+		_tmp=`echo "$opt"|sed 's/^[^=]*=//'`
+		gtk2_includes="$_tmp/include"
+		gtk2_libs="$_tmp/lib"
+		;;
+	--with-gtk1=*)
+		_tmp=`echo "$opt"|sed 's/^[^=]*=//'`
+		gtk1_includes="$_tmp/include"
+		gtk1_libs="$_tmp/lib"
+		;;
+	--with-pkg-config=*) target_pkg_config=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	--with-makeinfo=*) MAKEINFO=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	--with-texi2pdf=*) TEXI2PDF=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	--with-install=*) INSTALL=`echo "$opt"|sed 's/^[^=]*=//'`; ;;
+	-h|--help)
+		helptext
+		exit 0
+		;;
+	*) ;;
+	esac
+	shift
+done
+
+test -z "$exec_prefix" && exec_prefix="$prefix"
+test -z "$bindir" && bindir="$exec_prefix/bin"
+test -z "$sbindir" && sbindir="$exec_prefix/sbin"
+test -z "$libexecdir" && libexecdir="$exec_prefix/libexec"
+test -z "$datadir" && datadir="$prefix/share"
+test -z "$sysconfdir" && sysconfdir="$prefix/etc"
+test -z "$localstatedir" && localstatedir="$exec_prefix/var"
+test -z "$libdir" && libdir="$exec_prefix/lib"
+test -z "$includedir" && includedir="$prefix/include"
+test -z "$infodir" && infodir="$datadir/info"
+test -z "$mandir" && mandir="$prefix/man"
+test -z "$docdir" && docdir="$datadir/doc/xroar"
+test -z "$pdfdir" && pdfdir="$docdir"
+
+test -z "$BUILD_CC" && BUILD_CC="gcc"
+if test -z "$TARGET_CC"; then
+	if ( "$target-gcc" -v ) > /dev/null 2>&1; then
+		TARGET_CC="$target-gcc"
+	else
+		TARGET_CC="$BUILD_CC"
+	fi
+fi
+
+test -z "$BUILD_AS" && BUILD_AS="as"
+if test -z "$TARGET_AS"; then
+	if ( "$target-as" --version ) > /dev/null 2>&1; then
+		TARGET_AS="$target-as"
+	else
+		TARGET_AS="$BUILD_AS"
+	fi
+fi
+
+test -z "$BUILD_OBJCOPY" && BUILD_OBJCOPY="objcopy"
+if test -z "$TARGET_OBJCOPY"; then
+	if ( "$target-objcopy" --version ) > /dev/null 2>&1; then
+		TARGET_OBJCOPY="$target-objcopy"
+	else
+		TARGET_OBJCOPY="$BUILD_OBJCOPY"
+	fi
+fi
+
+########
+
+cc_check () {
+	ret=1
+	echo "$CC $CFLAGS $1 -c -o $TMPO $TMPC" >&$config_log
+	if $CC $CFLAGS $1 -c -o $TMPO $TMPC >&$config_log 2>&1; then
+		if test -n "$cc_build_only"; then
+			rm -f $TMPO
+			return 0
+		fi
+		echo "$CC $CFLAGS $1 $TMPO -o $TMPX $LDFLAGS $2" >&$config_log
+		if $CC $CFLAGS $1 $TMPO -o $TMPX $LDFLAGS $2 >&$config_log 2>&1; then
+			echo "# Success" >&$config_log
+			ret=0
+		else
+			echo "# Link failed: exit code = $?" >&$config_log
+		fi
+	else
+		echo "# Compile failed: exit code = $?" >&$config_log
+	fi
+	rm -f $TMPO $TMPX
+	return $ret
+}
+
+target_cc_check () {
+	CC="$TARGET_CC"
+	CFLAGS="$TARGET_CFLAGS"
+	LDFLAGS="$TARGET_LDFLAGS"
+	cc_check "$@"
+	return $?
+}
+
+target_cc_check_compile () {
+	cc_build_only=1
+	target_cc_check "$@"
+	ret=$?
+	unset cc_build_only
+	return $ret
+}
+
+build_cc_check () {
+	CC="$BUILD_CC"
+	CFLAGS="$BUILD_CFLAGS"
+	LDFLAGS="$BUILD_LDFLAGS"
+	cc_check "$@"
+	return $?
+}
+
+echocheck () {
+	echo "### Checking for $@" >&$config_log
+	echo $_echo_n "Checking for $@ ... $_echo_c"
+}
+
+########
+
+__build_cc_version=`$BUILD_CC -dumpmachine`
+echo "Build system type is $__build_cc_version" >&$config_log
+echo "Build system type is $__build_cc_version"
+__target_cc_version=`$TARGET_CC -dumpmachine`
+echo "Target system type is $__target_cc_version" >&$config_log
+echo "Target system type is $__target_cc_version"
+
+# Try and determine best optimisation if user has not specified any flags.
+
+test -z "$TARGET_CFLAGS" && TARGET_CFLAGS="$CFLAGS"
+if test -z "$TARGET_CFLAGS"; then
+	echocheck optimisation options
+	__opt="-O3"
+	cat > $TMPC <<EOF
+int main(int argc, char **argv) { return 0; }
+EOF
+	case "$__target_cc_version" in
+	powerpc-apple-*)
+		__tmp="-fast -mcpu=7450 -mdynamic-no-pic"
+		target_cc_check "$__tmp" "" && __opt="$__tmp"
+		;;
+	*)
+		;;
+	esac
+	echo "$__opt"
+	TARGET_CFLAGS="$__opt"
+fi
+
+test -z "$TARGET_CPPFLAGS" && TARGET_CPPFLAGS="$CPPFLAGS"
+test -z "$TARGET_LDFLAGS" && TARGET_LDFLAGS="$LDFLAGS"
+
+########
+
+if test -z "$target_pkg_config"; then
+	if ( "$target-pkg-config" --version ) > /dev/null 2>&1; then
+		target_pkg_config="$target-pkg-config"
+	elif ( pkg-config --version ) > /dev/null 2>&1; then
+		target_pkg_config="pkg-config"
+	else
+		target_pkg_config="false"
+	fi
+fi
+if test -z "$build_pkg_config"; then
+	if ( pkg-config --version ) > /dev/null 2>&1; then
+		build_pkg_config="pkg-config"
+	else
+		build_pkg_config="false"
+	fi
+fi
+
+########
+
+echocheck $TARGET_CC accepting -pipe
+_c_pipe=no
+cat > $TMPC <<EOF
+int main(int argc, char **argv) { return 0; }
+EOF
+target_cc_check_compile "-pipe" "" && _c_pipe=yes
+echo "$_c_pipe"
+if test "$_c_pipe" = "yes"; then
+	TARGET_CFLAGS="$TARGET_CFLAGS -pipe"
+fi
+rm -f $TMPC
+
+########
+
+# Check for specific architectures being selected
+
+if test "$_gp32" = "yes"; then
+	_nds=no
+fi
+
+if test "$_nds" = "yes"; then
+	_gp32=no
+fi
+
+########
+
+# Rather involved tests to see if we can build against the GP32 SDK.
+# Omits testing for the gpsound library, as I don't use that.
+if test "$_gp32" \!= "no"; then
+	echocheck GP32
+	gp32_cflags="-march=armv4t -mtune=arm920t -fomit-frame-pointer -ffast-math"
+	gp32_ldflags="-specs=gp32_gpsdk.specs -lgpmem -lgpstdlib -lgpos -lgpstdio -lgpgraphic"
+	_gp32=no
+	cat > $TMPC <<EOF
+#include <gpdef.h>
+#include <gpstdlib.h>
+#include <initval_port.h>
+#ifdef USE_GP_MEM
+#include <gpmem.h>
+#endif
+#include <gpgraphic.h>
+unsigned int HEAPSTART;
+unsigned int HEAPEND;
+int main(int argc, char *argv) { return 0; }
+int GpPredefinedStackGet(H_THREAD th) { return 0; }
+void GpMain(void *arg) { GPDRAWSURFACE g; GpGraphicModeSet(GPC_DFLAG_8BPP, NULL); GpLcdSurfaceGet(&g, 0); }
+void GpProcSound(void) { }
+EOF
+	target_cc_check "$gp32_cflags" "$gp32_ldflags" && _gp32=yes
+	rm -f $TMPC
+	echo "$_gp32"
+fi
+if test "$_gp32" = "yes"; then
+	BUILD_STYLE=gp32
+	_gp32_def="#define HAVE_GP32"
+	_have_video_driver=yes
+	_fast_vdg=yes
+	_sdl=no
+	_sdlgl=no
+	_curses=no
+	_gtk2=no
+	_gtk1=no
+	_cli=no
+	_carbon=no
+	_alsa=no
+	_oss=no
+	_sunaudio=no
+	_coreaudio=no
+	_jack=no
+	_nullaudio=no
+	_mingw=no
+	_nds=no
+	_trace=no
+	test -z "$_mpu_rate" && _mpu_rate=no
+	test -z "$_fast_sound" && _fast_sound=yes
+else
+	_gp32_def="#undef HAVE_GP32"
+fi
+
+########
+
+if test "$_nds" \!= "no"; then
+	echocheck NDS
+	nds_cflags="-march=armv5te -mtune=arm946e-s -fomit-frame-pointer -ffast-math -mthumb-interwork -DARM9"
+	nds_ldflags="-specs=ds_arm9.specs -lfat -lnds9"
+	cat > $TMPC <<EOF
+#include <nds.h>
+int main(int argc, char **argv) { powerOn(POWER_LCD | POWER_2D_B); return 0; }
+EOF
+	_nds=no
+	target_cc_check "$nds_cflags" "$nds_ldflags" && _nds=yes
+	rm -f $TMPC
+	echo "$_nds"
+fi
+if test "$_nds" = "yes"; then
+	BUILD_STYLE=nds
+	_nds_def="#define HAVE_NDS"
+	_have_video_driver=yes
+	_fast_vdg=yes
+	_sdl=no
+	_sdlgl=no
+	_curses=no
+	_gtk2=no
+	_gtk1=no
+	_cli=no
+	_carbon=no
+	_alsa=no
+	_oss=no
+	_sunaudio=no
+	_coreaudio=no
+	_jack=no
+	_nullaudio=no
+	_mingw=no
+	_trace=no
+	test -z "$_mpu_rate" && _mpu_rate=no
+	test -z "$_fast_sound" && _fast_sound=yes
+else
+	_nds_def="#undef HAVE_NDS"
+fi
+
+########
+
+if test "$_strsep" \!= "no"; then
+	echocheck "strsep()"
+	cat > $TMPC <<EOF
+#include <string.h>
+int main(int argc, char **argv) { (void)strsep(0,0); }
+EOF
+	_strsep=no
+	target_cc_check "" "" && _strsep=yes
+	rm -f $TMPC
+	echo "$_strsep"
+fi
+if test "$_strsep" = "yes"; then
+	_strsep_def="#undef NEED_STRSEP"
+else
+	_strsep_def="#define NEED_STRSEP"
+fi
+
+########
+
+if test -z "$target_sdl_config"; then
+	if ( "$target-sdl-config" --version ) > /dev/null 2>&1; then
+		target_sdl_config="$target-sdl-config"
+	elif ( sdl-config --version ) > /dev/null 2>&1; then
+		target_sdl_config="sdl-config"
+	else
+		target_sdl_config="false"
+	fi
+fi
+if test -z "$build_sdl_config"; then
+	if ( sdl-config --version ) > /dev/null 2>&1; then
+		build_sdl_config="sdl-config"
+	else
+		build_sdl_config="false"
+	fi
+fi
+
+if test "$_sdl" \!= "no"; then
+	echocheck SDL
+	test -n "$sdl_includes" && sdl_cflags="-I$sdl_includes"
+	test -z "$sdl_cflags" && sdl_cflags=`$target_sdl_config --cflags 2> /dev/null`
+	test -z "$sdl_cflags" && sdl_cflags=`$target_pkg_config --cflags sdl 2> /dev/null`
+	test -n "$sdl_libs" && sdl_ldflags="-L$sdl_libs -lSDL"
+	test -z "$sdl_ldflags" && sdl_ldflags=`$target_sdl_config --libs 2> /dev/null`
+	test -z "$sdl_ldflags" && sdl_ldflags=`$target_pkg_config --libs sdl 2> /dev/null`
+	cat > $TMPC <<EOF
+#include <SDL.h>
+int main(int argc, char **argv) { SDL_Init(0); return 0; }
+EOF
+	_sdl=no
+	target_cc_check "$sdl_cflags" "$sdl_ldflags" && _sdl=yes
+	# Save this temp .c file for build host test
+	rm -f $TMPC
+	echo "$_sdl"
+fi
+if test "$_sdl" = "yes"; then
+	_sdl_def="#define HAVE_SDL"
+	_have_video_driver=yes
+else
+	_sdl_def="#undef HAVE_SDL"
+fi
+
+if test "$_build_sdl" \!= "no"; then
+	echocheck SDL on build host
+	test -z "$build_sdl_cflags" && build_sdl_cflags=`$build_sdl_config --cflags 2> /dev/null`
+	test -z "$build_sdl_cflags" && build_sdl_cflags=`$build_pkg_config --cflags sdl 2> /dev/null`
+	test -z "$build_sdl_ldflags" && build_sdl_ldflags=`$build_sdl_config --libs 2> /dev/null`
+	test -z "$build_sdl_ldflags" && build_sdl_ldflags=`$build_pkg_config --libs sdl 2> /dev/null`
+	cat > $TMPC <<EOF
+#include <SDL.h>
+int main(int argc, char **argv) { SDL_Init(0); return 0; }
+EOF
+	_build_sdl=no
+	build_cc_check "$build_sdl_cflags" "$build_sdl_ldflags" && _build_sdl=yes
+	rm -f $TMPC
+	echo "$_build_sdl"
+fi
+
+########
+
+if test "$_build_sdl_image" \!= "no"; then
+	echocheck SDL_image on build host
+	test -z "$build_sdl_image_ldflags" && build_sdl_image_ldflags="-lSDL_image"
+	cat > $TMPC <<EOF
+#include <SDL.h>
+#include <SDL_image.h>
+int main(int argc, char **argv) { SDL_Init(0); IMG_Load(""); return 0; }
+EOF
+	_build_sdl_image=no
+	build_cc_check "$build_sdl_cflags" "$build_sdl_ldflags $build_sdl_image_ldflags" && _build_sdl_image=yes
+	rm -f $TMPC
+	echo "$_build_sdl_image"
+fi
+
+########
+
+if test "$_build_sdl" = "no" -o "$_build_sdl_image" = "no"; then
+	echo "Both SDL and SDL_image are needed by the build process!"
+	exit 1
+fi
+
+########
+
+if test "$_sdlgl" \!= "no"; then
+	echocheck SDL OpenGL support
+	cat > $TMPC <<EOF
+#include <SDL.h>
+#include <SDL_opengl.h>
+int main(int argc, char **argv) { GLuint t; SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 5); glGenTextures(1, &t); return 0; }
+EOF
+	_sdlgl=no
+	sdlgl_ldflags="-lGL"
+	target_cc_check "$sdl_cflags" "$sdl_ldflags $sdlgl_ldflags" && _sdlgl=yes
+	if test "$_sdlgl" = "no"; then
+		sdlgl_ldflags="-framework OpenGL"
+		target_cc_check "$sdl_cflags" "$sdl_ldflags $sdlgl_ldflags" && _sdlgl=yes
+	fi
+	if test "$_sdlgl" = "no"; then
+		sdlgl_ldflags="-lopengl32"
+		target_cc_check "$sdl_cflags" "$sdl_ldflags $sdlgl_ldflags" && _sdlgl=yes
+	fi
+	echo "$_sdlgl"
+fi
+if test "$_sdlgl" = "yes"; then
+	_sdlgl_def="#define HAVE_SDLGL"
+else
+	_sdlgl_def="#undef HAVE_SDLGL"
+fi
+
+########
+
+if test "$_curses" \!= "no"; then
+	echocheck Curses
+	curses_ldflags="-lcurses"
+	cat > $TMPC <<EOF
+#include <curses.h>
+int main(int argc, char **argv) { initscr(); endwin(); return 0; }
+EOF
+	_curses=no
+	target_cc_check "" "$curses_ldflags" && _curses=yes
+	rm -f $TMPC
+	echo "$_curses"
+fi
+if test "$_curses" = "yes"; then
+	_curses_def="#define HAVE_CURSES"
+	_have_video_driver=yes
+	test -z "$_cli" && _cli=yes
+else
+	_curses_def="#undef HAVE_CURSES"
+fi
+
+########
+
+if test "$_gtk2" \!= "no"; then
+	echocheck GTK+-2
+	test -z "$gtk2_cflags" && gtk2_cflags=`$target_pkg_config --cflags gtk+-2.0 2> /dev/null`
+	test -z "$gtk2_ldflags" && gtk2_ldflags=`$target_pkg_config --libs gtk+-2.0 2> /dev/null`
+	cat > $TMPC <<EOF
+#include <gtk/gtk.h>
+int main(int argc, char **argv) { gtk_init(&argc, &argv); return 0; }
+EOF
+	_gtk2=no
+	target_cc_check "$gtk2_cflags" "$gtk2_ldflags" && _gtk2=yes
+	rm -f $TMPC
+	echo "$_gtk2"
+fi
+if test "$_gtk2" = "yes"; then
+	_gtk2_def="#define HAVE_GTK2"
+	test -z "$_gtk1" && _gtk1=no
+else
+	_gtk2_def="#undef HAVE_GTK2"
+fi
+
+########
+
+if test -z "$target_gtk_config"; then
+	if ( "$target-gtk-config" --version ) > /dev/null 2>&1; then
+		target_gtk_config="$target-gtk-config"
+	elif ( gtk-config --version ) > /dev/null 2>&1; then
+		target_gtk_config="gtk-config"
+	else
+		target_gtk_config="false"
+	fi
+fi
+
+if test "$_gtk1" \!= "no"; then
+	echocheck GTK+-1
+	test -z "$gtk1_cflags" && gtk1_cflags=`$target_gtk_config --cflags 2> /dev/null`
+	test -z "$gtk1_cflags" && gtk1_cflags=`$target_pkg_config --cflags gtk+ 2> /dev/null`
+	test -z "$gtk1_ldflags" && gtk1_ldflags=`$target_gtk_config --libs 2> /dev/null`
+	test -z "$gtk1_ldflags" && gtk1_ldflags=`$target_pkg_config --libs gtk+ 2> /dev/null`
+	cat > $TMPC <<EOF
+#include <gtk/gtk.h>
+int main(int argc, char **argv) { gtk_init(&argc, &argv); return 0; }
+EOF
+	_gtk1=no
+	target_cc_check "$gtk1_cflags" "$gtk1_ldflags" && _gtk1=yes
+	rm -f $TMPC
+	echo "$_gtk1"
+fi
+if test "$_gtk1" = "yes"; then
+	_gtk1_def="#define HAVE_GTK1"
+else
+	_gtk1_def="#undef HAVE_GTK1"
+fi
+
+########
+
+if test "$_carbon" \!= "no"; then
+	echocheck Mac OS X Carbon
+	carbon_ldflags="-framework Carbon"
+	cat > $TMPC <<EOF
+#include <Carbon/Carbon.h>
+int main(int argc, char **argv) { NavDialogRef n; NavDialogRun(n); return 0; }
+EOF
+	_carbon=no
+	target_cc_check "" "$carbon_ldflags" && _carbon=yes
+	rm -f $TMPC
+	echo "$_carbon"
+fi
+if test "$_carbon" = "yes"; then
+	_carbon_def="#define HAVE_CARBON"
+else
+	_carbon_def="#undef HAVE_CARBON"
+fi
+
+########
+
+if test "$_alsa" \!= "no"; then
+	echocheck ALSA
+	test -z "$alsa_ldflags" && alsa_ldflags="-lasound"
+	cat > $TMPC <<EOF
+#include <alsa/asoundlib.h>
+int main(int argc, char **argv) { snd_pcm_t *pcm_handle; snd_pcm_open(&pcm_handle, "default", SND_PCM_STREAM_PLAYBACK, 0); return 0; }
+EOF
+	_alsa=no
+	target_cc_check "" "$alsa_ldflags" && _alsa=yes
+	rm -f $TMPC
+	echo "$_alsa"
+fi
+if test "$_alsa" = "yes"; then
+	_alsa_def="#define HAVE_ALSA_AUDIO"
+else
+	_alsa_def="#undef HAVE_ALSA_AUDIO"
+fi
+
+########
+
+if test "$_oss" \!= "no"; then
+	echocheck OSS
+	cat > $TMPC <<EOF
+#include <sys/soundcard.h>
+int main(int argc, char **argv) { int t = AFMT_S8; t = SNDCTL_DSP_GETFMTS; return 0; }
+EOF
+	_oss=no
+	target_cc_check "" "" && _oss=yes
+	rm -f $TMPC
+	echo "$_oss"
+fi
+if test "$_oss" = "yes"; then
+	_oss_def="#define HAVE_OSS_AUDIO"
+else
+	_oss_def="#undef HAVE_OSS_AUDIO"
+fi
+
+########
+
+if test "$_sunaudio" \!= "no"; then
+	echocheck Sun audio
+	sunaudio_ldflags="-lrt"
+	cat > $TMPC <<EOF
+#include <stdlib.h>
+#include <sys/audioio.h>
+#include <sys/stropts.h>
+#include <time.h>
+int main(int argc, char **argv) { audio_info_t d; int t = AUDIO_ENCODING_LINEAR; t = I_FLUSH; nanosleep(NULL,NULL); return 0; }
+EOF
+	_sunaudio=no
+	target_cc_check "" "$sunaudio_ldflags" && _sunaudio=yes
+	rm -f $TMPC
+	echo "$_sunaudio"
+fi
+if test "$_sunaudio" = "yes"; then
+	_sunaudio_def="#define HAVE_SUN_AUDIO"
+else
+	_sunaudio_def="#undef HAVE_SUN_AUDIO"
+fi
+
+########
+
+if test "$_coreaudio" \!= "no"; then
+	echocheck Mac OS X Core Audio
+	coreaudio_ldflags="-framework CoreAudio"
+	cat > $TMPC <<EOF
+#include <CoreAudio/AudioHardware.h>
+int main(int argc, char **argv) { AudioDeviceID d; AudioDeviceSetProperty(d, NULL, 0, false, 0, 0, NULL); return 0; }
+EOF
+	_coreaudio=no
+	target_cc_check "" "$coreaudio_ldflags" && _coreaudio=yes
+	rm -f $TMPC
+	echo "$_coreaudio"
+fi
+if test "$_coreaudio" = "yes"; then
+	_coreaudio_def="#define HAVE_MACOSX_AUDIO"
+else
+	_coreaudio_def="#undef HAVE_MACOSX_AUDIO"
+fi
+
+########
+
+if test "$_jack" \!= "no"; then
+	echocheck Jack audio
+	test -z "$jack_cflags" && jack_cflags=`$target_pkg_config --cflags jack 2> /dev/null`
+	test -z "$jack_ldflags" && jack_ldflags=`$target_pkg_config --libs jack 2> /dev/null`
+	cat > $TMPC <<EOF
+#include <jack/jack.h>
+int main(int argc, char **argv) { jack_client_t *c; jack_activate(c); return 0; }
+EOF
+	_jack=no
+	target_cc_check "$jack_cflags" "$jack_ldflags" && _jack=yes
+	rm -f $TMPC
+	echo "$_jack"
+fi
+if test "$_jack" = "yes"; then
+	_jack_def="#define HAVE_JACK_AUDIO"
+else
+	_jack_def="#undef HAVE_JACK_AUDIO"
+fi
+
+########
+
+test -z "$_nullaudio" && _nullaudio=yes
+if test "$_nullaudio" = "yes"; then
+	_nullaudio_def="#define HAVE_NULL_AUDIO"
+else
+	_nullaudio_def="#undef HAVE_NULL_AUDIO"
+fi
+
+########
+
+if test "$_sndfile" \!= "no"; then
+	echocheck libsndfile
+	test -z "$sndfile_cflags" && sndfile_cflags=`$target_pkg_config --cflags sndfile 2> /dev/null`
+	test -z "$sndfile_ldflags" && sndfile_ldflags=`$target_pkg_config --libs sndfile 2> /dev/null`
+	cat > $TMPC <<EOF
+#include <sndfile.h>
+int main(int argc, char **argv) { SNDFILE *f; SF_INFO i; f = sf_open("", SFM_READ, &i); return 0; }
+EOF
+	_sndfile=no
+	target_cc_check "$sndfile_cflags" "$sndfile_ldflags" && _sndfile=yes
+	rm -f $TMPC
+	echo "$_sndfile"
+fi
+if test "$_sndfile" = "yes"; then
+	_sndfile_def="#define HAVE_SNDFILE"
+else
+	_sndfile_def="#undef HAVE_SNDFILE"
+fi
+
+########
+
+if test "$_mingw" \!= "no"; then
+	echocheck MinGW
+	mingw_ldflags="-lmingw32 -mwindows"
+	cat > $TMPC <<EOF
+#include <windows.h>
+#include <commdlg.h>
+int main(int argc, char **argv) { OPENFILENAME o; o.Flags = OFN_PATHMUSTEXIST; GetSaveFileName(&o); return 0; }
+EOF
+	_mingw=no
+	target_cc_check "" "$mingw_ldflags" && _mingw=yes
+	rm -f $TMPC
+	echo "$_mingw"
+fi
+if test "$_mingw" = "yes"; then
+	EXEEXT=.exe
+	_mingw_def="#define WINDOWS32"
+	_cli=no
+else
+	_mingw_def="#undef WINDOWS32"
+fi
+
+########
+
+echocheck "makeinfo >= 4.13"
+test -z "$MAKEINFO" && MAKEINFO="makeinfo"
+makeinfo_version=`$MAKEINFO --version 2>/dev/null | head -1 | sed 's/^.* \([1-9][0-9\.]*\)$/\1/;s/\.\([0-9][0-9]*\)/.0000\1/;s/\.[0-9]*\(.....\)$/\1/;'`
+test -z "$makeinfo_version" && makeinfo_version=0
+if test "$makeinfo_version" -ge "400013"; then
+	_makeinfo=yes
+else
+	unset MAKEINFO
+	_makeinfo=no
+fi
+echo $_makeinfo
+
+echocheck texi2pdf
+test -z "$TEXI2PDF" && TEXI2PDF="texi2pdf"
+if ( $TEXI2PDF --version ) > /dev/null 2>&1; then
+	_texi2pdf=yes
+else
+	unset TEXI2PDF
+	_texi2pdf=no
+fi
+echo $_texi2pdf
+
+echocheck install
+test -z "$INSTALL" && INSTALL="install"
+if ( $INSTALL --version ) > /dev/null 2>&1; then
+	_install=yes
+else
+	unset INSTALL
+	_install=no
+fi
+echo $_install
+
+########
+
+test -z "$_cli" && _cli=no
+if test "$_cli" = "yes"; then
+	_cli_def="#define HAVE_CLI"
+else
+	_cli_def="#undef HAVE_CLI"
+fi
+
+########
+
+test -z "$_mpu_rate" && _mpu_rate=yes
+if test "$_mpu_rate" = "yes"; then
+	_mpu_rate_def="#define VARIABLE_MPU_RATE"
+else
+	_mpu_rate_def="#undef VARIABLE_MPU_RATE"
+fi
+
+########
+
+test -z "$_trace" && _trace=yes
+if test "$_trace" = "yes"; then
+	echo "Trace mode included"
+	_trace_def="#define TRACE"
+else
+	echo "Trace mode not included"
+	_trace_def="#undef TRACE"
+fi
+
+########
+
+test -z "$_fast_vdg" && _fast_vdg=no
+if test "$_fast_vdg" = "yes"; then
+	echo "Fast video enabled"
+	_fast_vdg_def="#define FAST_VDG"
+else
+	echo "Accurate video enabled"
+	_fast_vdg_def="#undef FAST_VDG"
+fi
+
+########
+
+test -z "$_fast_sound" && _fast_sound=no
+if test "$_fast_sound" = "yes"; then
+	echo "Fast audio enabled"
+	_fast_sound_def="#define FAST_SOUND"
+else
+	echo "Accurate audio enabled"
+	_fast_sound_def="#undef FAST_SOUND"
+fi
+
+############################################################################
+# Write config.mak and config.h
+
+echo "Creating config.mak and config.h"
+cat > config.mak <<EOF
+prefix = $prefix
+exec_prefix = $exec_prefix
+bindir = $bindir
+sbindir = $sbindir
+libdir = $libdir
+datadir = $datadir
+sysconfdir = $sysconfdir
+includedir = $includedir
+infodir = $infodir
+mandir = $mandir
+docdir = $docdir
+pdfdir = $pdfdir
+
+SRCROOT = $SRCROOT
+
+BUILD_STYLE = $BUILD_STYLE
+EXEEXT = $EXEEXT
+AS = $TARGET_AS
+CC = $TARGET_CC
+OBJCOPY = $TARGET_OBJCOPY
+CFLAGS = $TARGET_CFLAGS
+CPPFLAGS = $TARGET_CPPFLAGS
+LDFLAGS = $TARGET_LDFLAGS
+
+BUILD_CC = $BUILD_CC
+BUILD_CFLAGS = $BUILD_CFLAGS
+
+MAKEINFO = $MAKEINFO
+TEXI2PDF = $TEXI2PDF
+INSTALL = $INSTALL
+
+EOF
+
+cat > config.h <<EOF
+#ifndef XROAR_CONFIG_H_
+#define XROAR_CONFIG_H_
+
+EOF
+
+for opt in $all_opt; do
+	eval "isset=\"\$_$opt\""
+	if test "$isset" = "yes"; then
+		echo "opt_$opt = yes" >> config.mak
+		eval "test -n \"\$${opt}_cflags\" && echo \"opt_${opt}_CFLAGS = \$${opt}_cflags\"" >> config.mak
+		eval "test -n \"\$${opt}_ldflags\" && echo \"opt_${opt}_LDFLAGS = \$${opt}_ldflags\"" >> config.mak
+	fi
+	eval "test -n \"\$_${opt}_def\" && echo \"\$_${opt}_def\"" >> config.h
+done
+
+cat >> config.h <<EOF
+
+#endif  /* def XROAR_CONFIG_H_ */
+EOF
+
+if test \! -f Makefile; then
+	echo "Symlinking Makefile"
+	ln -s "$SRCROOT"/Makefile Makefile
+	ln -s "$SRCROOT"/makefile_gp32.mk makefile_gp32.mk
+	ln -s "$SRCROOT"/makefile_nds.mk makefile_nds.mk
+fi
+
+exec 3<&-
+
+############################################################################
+# Some final checks to inform user about important things
+
+if test -z "$_have_video_driver"; then
+	cat <<EOF
+
+Erk!  No feature able of providing video output has been configured.
+There's probably no point in building until you sort this out.
+EOF
+	exit 1
+fi

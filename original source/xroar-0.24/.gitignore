@@ -1,0 +1,49 @@
+## ignore build files
+*.o
+xroar
+xroar.exe
+xroar.arm7
+xroar.arm7.bin
+xroar.arm9
+xroar.arm9.bin
+xroar.ds.gba
+xroar.nds
+## common temporary files (really ought to be in peoples' ~/.gitignore)
+*~
+.*.swp
+.*.swo
+.DS_Store
+## debian rules often present, but separate
+debian/
+## generated files
+config.h
+config.log
+config.mak
+vdg_bitmaps.[ch]
+video_gp32.c
+gp32/cmode_bin.c
+gp32/copyright.c
+gp32/kbd_graphics.c
+gp32/vdg_bitmaps_gp32.c
+nds/kbd_graphics.c
+nds/nds_font8x8.c
+tools/font2c
+tools/prerender
+tools/img2c
+tools/img2c_nds
+doc/xroar.info
+doc/xroar.pdf
+doc/xroar.html
+doc/xroar.txt
+## software images that might be left around
+*.cas
+*.vdk
+*.dsk
+*.rom
+*.sna
+## testing under wine
+stderr.txt
+stdout.txt
+## deps files
+.deps.mak
+.deps.mak.bak

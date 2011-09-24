@@ -1,0 +1,166 @@
+************ PS3 Port of xroar ************
+
++= Introduction to PS3Roar =+
+
+PS3roar is a Tandy Colour Computer (CoCo) models 1 & 2 emulator that runs on a wide variety of platforms,
+now including the PS3. Due to hardware similarities, PS3roar also emulates the Dragon 32 and 64 Computer.
+The PS3 port and modifications completed by CrashSerious. The PS3 port uses PSl1GHT, a free and 
+Open Source SDK for the PS3.
+
+PS3roar - a Dragon/Tandy Coco emulator, is a port of xRoar by Ciaran Anscomb.
+xRoar is Copyright (C) 2003-2010 Ciaran Anscomb <xroar@6809.org.uk>
+
+This document just contains extracts from the manual covering installation of XRoar from source.
+If you downloaded a binary package,the full manual should have been supplied with it as a PDF, 
+which you can consult for more details.  Binary packages and an online copy of the documentation
+are available from the XRoar home page (http://www.6809.org.uk/dragon/xroar.shtml).
+
+***This emulator does not function completely at the moment. It is a WIP.***
+
+
++= Emulated machines =+
+
+    Dragon 32 (PAL).
+    Dragon 64 (PAL).
+    Tano Dragon (NTSC).
+    Tandy Colour Computer (1 and 2) (PAL).
+    Tandy Color Computer (1 and 2) (NTSC). 
+
+
++= Current status =+
+
+	- 6809 emulation
+	- Video display (at original pixel size) on a 480p display w/ background
+	- Keyboard emulation with PSL1GHT_SDL that has a keyboard Driver (https://github.com/CrashSerious/SDL_PSL1GHT)
+	- Cart loading from /dev_hdd0/game/PS3Roar00/USRDIR/ROMS/ (CTRL-I)
+	- Cassette loading from /dev_hdd0/game/PS3Roar00/USRDIR/CASSETTES/ (CTRL-L)
+	- Cassette Saves from /dev_hdd0/game/PS3Roar00/USRDIR/CASSETTES/ (CTRL-W)
+	- New Cassette creation (currently only one filename is used, a input mechanism is needed)
+	- Disk loading from /dev_hdd0/game/PS3Roar00/USRDIR/DISKS/ (CTRL 1-4)
+	- Disk Saving from /dev_hdd0/game/PS3Roar00/USRDIR/DISKS/ (No Key, automatically writable)
+	- New DISK (.dsk) creation (currently only one filename is used, a input mechanism is needed)
+	- Snapshot loading from /dev_hdd0/game/PS3Roar00/USRDIR/SNAPSHOTS/ (CTRL+S)
+	- Snapshot saving to /dev_hdd0/game/PS3Roar00/USRDIR/SNAPSHOTS/
+	- Emulation Soft Reset (CTRL-R)
+	- Emulation Hard Reset (SHIFT-CTRL-R)
+	- Exit (CTRL-C)
+	- trace mode (with DEX or Ethboot payload)
+	- Fixed emulator in all resolutions supported by the PS3. 480p, 720p, 1080p, etc
+	- Switching to and from full screen mode enabled, set full screen to default.
+
+
++= Known issues =+
+
+	- Sound (Sound is there, but not 100% correct)
+
+
++= Keyboard commands: =+
+
+PS3roar's user interface is based around SDL. The emulator video output window is shown, and all
+operations are performed with keyboard combinations, usually accessed as Control+KEY. The following are
+the keyboard combinations for the functions listed:
+
+-= Loading Files =-
+Control+I			Insert a ROM cartridge.
+Control+Shift+I		Insert a ROM cartridge, no autorun.
+Control+L			Load a cassette file.
+Control+Shift+L		Load a cassette file and attempt to autorun it where appropriate.
+Control+W			Attach a virtual cassette file for writing.
+Control+[1-4]			Insert a virtual disk into drive 1-4.
+Control+Shift+[1-4]		Insert a blank virtual disk (40TSS) into drive 1-4.
+Control+[5-8]			Toggle write enable on disk in drive 1-4.
+Control+Shift+[5-8]		Toggle write back on disk in drive 1-4.
+Control+S			Save a snapshot.
+Control+Shift+S		Load a snapshot.
+
+-= System Control Keys =-
+Control+R			Soft reset emulated machine.
+Control+Shift+R		Hard reset emulated machine.
+Control+C			Quit emulator (Power Off).
+
+-= Emulation Configuration Keys =-
+Control+K			Toggle between Dragon and CoCo keyboard layout. See Keyboard.
+Control+A			Cycle through cross-colour video modes (hi-res only).
+Control+M			Cycle through emulated machine types (resets machine).
+Control+E			Toggle DOS emulation on/off - reset to take effect.
+Control+J			Cycle through joystick emulation modes (None, Left, Right).
+Control+Shift+J		Swap joystick mapping (left/right).
+Control+Z			Enable keyboard translation mode.
+Control+F			Switch from and back to Full screen mode.
+F12				While held, the emulator will run at the maximum possible speed. 
+Control+U			Create and copy from folders on USB for ROMS, CAS, DSK, BIOS, etc.
+
++= ROMS information =+
+
+The emulator is distributed with some software for the Color Computer II, it is distributed with:
+
+Dungeons of Daggorath, per the license below:
+	http://iloveglory.freehostia.com/daggorath/license.html
+
+To find other ROMS, and to find BIOS files; search google for the phrase, they are REQUIRED to get
+the emulator working:
+
+"color computer" roms
+
+PS3Roar creates a folder structure on a USB drive that does not already contain a "PS3Roar" directory, the structure is:
+	BIOS
+	CASSETTES
+	DISKS
+	images
+	ROMS
+	SNAPSHOTS
+
+These folders correspond to the folders in the installed PS3roar directory on the HDD. Placing fikles on the USB Stick, then anagin inserting
+into the PS3 and pressing CONTROL+U once more will copy the files to the PS3. Once copied, the USB stick can be removed. Note: files are NEVER loaded from USB,
+they must be on the internal HDD in the proper location. The CONTROL+U functionality makes this easy and removes the need to FTP files to the PS3.
+
++= Notes =+
+
+- You will need to unzip the rom files. They need to be .rom files, the emulator doesn't deal with .zips
+- You will need to get your own roms and (for now) place them in /dev_hdd0/game/PS3Roar00/USRDIR/ROMS/ to get the emulator
+ "operational"
+- Heavy reorganization was done to the original source code to accomodate easy PS3 compilation and creation of a PS3
+  the original source code is in a .tar.gz in the original source code of this repository.
+- The original readme has been left intact, and is named README.xroar
+- Docs for the original can be found at http://www.6809.org.uk/dragon/xroar-manual.shtml
+- (Xroar functions that are not to be implemented)
+	Control+F
+	    Toggle full screen mode.
+	Control+T
+	    Open the tape control window (certain user interfaces only). See Tape control.
+	Control+Shift+P
+	    Flush printer output. See Printing.
+
+
+
+++++++++++++++++++++++++Original License for XRoar+++++++++++++++++++++++++
+
+This program is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation; either version 2 of the License, or (at your
+option) any later version.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+See the file 'COPYING.GPL' for the full terms.
+
+Binary distributions only:
+
+Binary distributions of this software may be linked, statically or
+otherwise, against the SDL and/or libsndfile libraries.  Both packages
+are distributed under the GNU Lesser General Public License, Version
+2.1.  Source code for these libraries is made available from their
+respective home pages, but also from the XRoar home page (see above for
+URL).
+
+See the file 'COPYING.LGPL-2.1' for the full terms.
+
+http://www.libsdl.org/                  - SDL home page.
+
